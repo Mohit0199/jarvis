@@ -28,9 +28,3 @@ Before you begin, ensure you have the following:
 
 ---
 
-## Installation 🛠️
-
-1. **Clone the Repository**:
-   ```bash
-   git clone https://github.com/Mohit0199/jarvis.git
-   cd jarvis
