@@ -1,6 +1,6 @@
 # Jarvis - Your Personal Voice Assistant 🤖
 
-Jarvis is a voice assistant designed for automating tasks and phone operations via ADB (Android Debug Bridge). It uses Hugging Face’s `deepseek r1` model for natural language understanding and HuggingChat for conversational capabilities. The project is modular, extensible, and highly customizable, allowing users to easily adapt and expand its features. It also leverages cookies for model access and smooth interactions.
+Jarvis is a voice assistant that activates via a wake word `jarvis` or the Win+J hotkey or with a button, designed for automating tasks and phone operations via ADB (Android Debug Bridge). It uses Hugging Face’s `deepseek r1` model for natural language understanding and HuggingChat for conversational capabilities. The project is modular, extensible, and highly customizable, allowing users to easily adapt and expand its features. It also leverages cookies for model access and smooth interactions.
 
 ---
 
