@@ -2,7 +2,6 @@ from shlex import quote
 import subprocess
 from playsound import playsound
 import eel
-import pyautogui
 from engine.command import speak
 from engine.config import ASSISTANT_NAME
 import os
@@ -11,13 +10,18 @@ import re
 import sqlite3
 import webbrowser
 from engine.helper import extract_yt_term, remove_words
-import pyaudio
 import pvporcupine
 import time
-import struct
-from hugchat import hugchat
 from engine.prompts import generate_prompt, clean_response
+import ollama
+import pvporcupine
+from pvrecorder import PvRecorder
+import pyautogui as autogui
+import time
+from dotenv import load_dotenv
+import pyautogui
 
+load_dotenv()
 
 con = sqlite3.connect("jarvis.db")
 cursor = con.cursor()
@@ -68,46 +72,57 @@ def openCommand(query):
 
 def PlayYoutube(query):
     search_term = extract_yt_term(query)
+    if search_term is None:
+        speak("Sorry, I couldn't find the song name in your query.")
+        return
     speak("Playing "+search_term+" on youtube")
     kit.playonyt(search_term)
 
 
 def hotword():
-    porcupine=None
-    paud=None
-    audio_stream=None
+    access_key = os.getenv("PICOVOICE_ACCESS_KEY")
+    if not access_key:
+        raise ValueError("PICOVOICE_ACCESS_KEY environment variable is not set.")
+    
+    porcupine = None
+    recorder = None
+    
     try:
-        # pre trained keywords    
-        porcupine=pvporcupine.create(keywords=["jarvis"], sensitivities=[1.0]) 
-        paud=pyaudio.PyAudio()
-        audio_stream=paud.open(rate=porcupine.sample_rate,channels=1,format=pyaudio.paInt16,input=True,frames_per_buffer=porcupine.frame_length)
+        porcupine = pvporcupine.create(
+            access_key=access_key,
+            keywords=["jarvis"],
+            sensitivities=[0.5]
+        )
         
-        # loop for streaming
+        recorder = PvRecorder(device_index=-1, frame_length=porcupine.frame_length)
+        recorder.start()
+        
+        print("🎙️ Listening for 'Jarvis'...")
+        
         while True:
-            keyword=audio_stream.read(porcupine.frame_length)
-            keyword=struct.unpack_from("h"*porcupine.frame_length,keyword)
-
-            # processing keyword comes from mic 
-            keyword_index=porcupine.process(keyword)
-
-            # checking first keyword detetcted for not
-            if keyword_index>=0:
-                print("hotword detected")
-
-                # pressing shorcut key win+j
-                import pyautogui as autogui
+            pcm = recorder.read()
+            keyword_index = porcupine.process(pcm)
+            
+            if keyword_index >= 0:
+                print("✅ Hotword detected!")
                 autogui.keyDown("win")
                 autogui.press("j")
                 time.sleep(2)
                 autogui.keyUp("win")
                 
-    except:
+    except KeyboardInterrupt:
+        print("Stopped by user.")
+    
+    except Exception as e:
+        print(f"Error: {e}")
+    
+    finally:
+        if recorder is not None:
+            recorder.stop()
+            recorder.delete()
         if porcupine is not None:
             porcupine.delete()
-        if audio_stream is not None:
-            audio_stream.close()
-        if paud is not None:
-            paud.terminate()
+
 
 
 # find contacts
@@ -182,14 +197,20 @@ def whatsApp(mobile_no, message, flag, name):
 
 def chatBot(query):
     user_input = query.lower()
-    chatbot = hugchat.ChatBot(cookie_path="engine/cookies.json")
-    id = chatbot.new_conversation()
-    chatbot.change_conversation(id)
-    
-    # Generate the prompt based on the query content
+
+    # Create the prompt using your existing function
     prompt = generate_prompt(user_input)
-    response = chatbot.chat(prompt)
-    clean_text = clean_response(response)
+
+    # Use Ollama library to chat with local model
+    response = ollama.chat(
+        model='qwen2.5:latest',   # change this if using another model (e.g. mistral, gemma)
+        messages=[
+            {"role": "user", "content": prompt}
+        ]
+    )
+
+    # Extract and clean response
+    clean_text = clean_response(response['message']['content'])
 
     print(clean_text)
     speak(clean_text)
