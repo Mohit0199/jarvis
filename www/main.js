@@ -1,7 +1,7 @@
 $(document).ready(function () {
 
     $('.text').textillate({
-        loop: true,
+        loop: false,
         sync: true,
         in: {
             effect: "bounceIn",
@@ -24,20 +24,10 @@ $(document).ready(function () {
         autostart: true
     });
 
-
-    // Siri message animation
-    $('.siri-message').textillate({
-        loop: true,
-        sync: true,
-        in: {
-            effect: "fadeInUp",
-            sync: true,
-        },
-        out: {
-            effect: "fadeOutUp",
-            sync: true,
-        },
-
+    $("#StopSpeakingBtn").click(function () {
+        eel.stop_speak();
+        eel.StopTextAnimation();
+        $("#StopSpeakingBtn").attr('hidden', true);
     });
 
 
@@ -71,7 +61,7 @@ $(document).ready(function () {
             $("#Oval").attr("hidden", true);
             $("#SiriWave").attr("hidden", false);
             eel.allCommands(message);
-            $("#chatbox").val("")
+            $("#chatbox").val("");
             $("#MicBtn").attr('hidden', false);
             $("#SendBtn").attr('hidden', true);
 

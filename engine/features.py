@@ -33,6 +33,22 @@ def playAssistantSound():
     playsound(music_dir)
 
 
+def wait_for_speech():
+    """Block until all queued voice clips have finished playing."""
+    import engine.command
+    while not engine.command.tts_queue.empty() or engine.command.fetcher_busy or not engine.command.play_queue.empty():
+        if engine.command.stop_speaking_flag:
+            return
+        eel.sleep(0.1)
+    try:
+        while pygame.mixer.music.get_busy():
+            if engine.command.stop_speaking_flag:
+                return
+            eel.sleep(0.1)
+    except:
+        pass
+
+
 def openCommand(query):
     query = query.replace(ASSISTANT_NAME, "")
     query = query.replace("open", "")
@@ -49,6 +65,7 @@ def openCommand(query):
 
             if len(results) != 0:
                 speak("Opening "+query)
+                wait_for_speech()
                 os.startfile(results[0][0])
 
             elif len(results) == 0: 
@@ -58,10 +75,12 @@ def openCommand(query):
                 
                 if len(results) != 0:
                     speak("Opening "+query)
+                    wait_for_speech()
                     webbrowser.open(results[0][0])
 
                 else:
                     speak("Opening "+query)
+                    wait_for_speech()
                     try:
                         os.system('start '+query)
                     except:
@@ -76,52 +95,82 @@ def PlayYoutube(query):
         speak("Sorry, I couldn't find the song name in your query.")
         return
     speak("Playing "+search_term+" on youtube")
+    wait_for_speech()
     kit.playonyt(search_term)
 
 
 def hotword():
-    access_key = os.getenv("PICOVOICE_ACCESS_KEY")
-    if not access_key:
-        raise ValueError("PICOVOICE_ACCESS_KEY environment variable is not set.")
-    
-    porcupine = None
-    recorder = None
-    
+    import openwakeword
+    from openwakeword.model import Model
+    import pyaudio
+    import numpy as np
+
+    # Download models on first run
+    openwakeword.utils.download_models()
+
+    # Load the 'hey jarvis' wake word model with ONNX
+    oww_model = Model(
+        wakeword_models=["hey_jarvis_v0.1"],
+        inference_framework="onnx"
+    )
+
+    print("Loaded wake word models:", list(oww_model.models.keys()))
+
+    # Setup microphone stream
+    audio = pyaudio.PyAudio()
+    CHUNK = 1280  # openwakeword expects 80ms of 16kHz audio = 1280 samples
+    FORMAT = pyaudio.paInt16
+    CHANNELS = 1
+    RATE = 16000
+
+    stream = audio.open(
+        format=FORMAT,
+        channels=CHANNELS,
+        rate=RATE,
+        input=True,
+        frames_per_buffer=CHUNK
+    )
+
+    print("⏳ Warming up wake word engine...")
+
+    # Warmup: feed ~3 seconds of audio to fill the model's internal buffer
+    warmup_frames = int(3 * RATE / CHUNK)  # 3 seconds worth
+    for _ in range(warmup_frames):
+        audio_data = stream.read(CHUNK, exception_on_overflow=False)
+        audio_array = np.frombuffer(audio_data, dtype=np.int16)
+        oww_model.predict(audio_array)
+    oww_model.reset()
+
+    print("🎙️ Listening for 'Hey Jarvis'... (Ready!)")
+
     try:
-        porcupine = pvporcupine.create(
-            access_key=access_key,
-            keywords=["jarvis"],
-            sensitivities=[0.5]
-        )
-        
-        recorder = PvRecorder(device_index=-1, frame_length=porcupine.frame_length)
-        recorder.start()
-        
-        print("🎙️ Listening for 'Jarvis'...")
-        
         while True:
-            pcm = recorder.read()
-            keyword_index = porcupine.process(pcm)
-            
-            if keyword_index >= 0:
-                print("✅ Hotword detected!")
-                autogui.keyDown("win")
-                autogui.press("j")
-                time.sleep(2)
-                autogui.keyUp("win")
-                
+            audio_data = stream.read(CHUNK, exception_on_overflow=False)
+            audio_array = np.frombuffer(audio_data, dtype=np.int16)
+
+            # Feed audio to the model
+            prediction = oww_model.predict(audio_array)
+
+            # Check all model scores
+            for model_name, score in prediction.items():
+                if score > 0.08:
+                    print(f"✅ Wake word detected! ({model_name}: {score:.2f})")
+                    oww_model.reset()
+                    autogui.keyDown("win")
+                    autogui.press("j")
+                    time.sleep(2)
+                    autogui.keyUp("win")
+
     except KeyboardInterrupt:
         print("Stopped by user.")
-    
+
     except Exception as e:
-        print(f"Error: {e}")
-    
+        print(f"Error in hotword: {e}")
+
     finally:
-        if recorder is not None:
-            recorder.stop()
-            recorder.delete()
-        if porcupine is not None:
-            porcupine.delete()
+        stream.stop_stream()
+        stream.close()
+        audio.terminate()
 
 
 
@@ -201,20 +250,115 @@ def chatBot(query):
     # Create the prompt using your existing function
     prompt = generate_prompt(user_input)
 
-    # Use Ollama library to chat with local model
-    response = ollama.chat(
-        model='qwen2.5:latest',   # change this if using another model (e.g. mistral, gemma)
+    # Tell UI to initialize a new streaming text bubble + show thinking animation
+    try:
+        eel.receiverTextStreamInit()
+        eel.ShowThinkingAnimation()
+        eel.sleep(0.5)
+    except Exception as e:
+        print("Eel stream init failed", e)
+
+    # Use Ollama library to stream chat with local model
+    response_stream = ollama.chat(
+        model='qwen2.5:latest',
         messages=[
             {"role": "user", "content": prompt}
-        ]
+        ],
+        stream=True
     )
 
-    # Extract and clean response
-    clean_text = clean_response(response['message']['content'])
+    import engine.command
+    # Reset the sync flag so we wait for the first clip to start playing
+    engine.command.first_audio_playing = False
+    
+    sentence_buffer = ""
+    full_text = ""
+    first_chunk_sent = False
+    ui_buffer = []       # Buffer tokens until voice starts
+    voice_started = False # Flipped True once first audio clip begins playing
 
-    print(clean_text)
-    speak(clean_text)
-    return clean_text
+    for chunk in response_stream:
+        # Check if user hit the stop button to abort LLM generation halfway!
+        if engine.command.stop_speaking_flag:
+            break
+            
+        token = chunk['message'].get('content', '')
+        if not token:
+            continue
+        
+        sentence_buffer += token
+        full_text += token
+        
+        # ─── UI TEXT SYNC ───
+        # Buffer tokens silently until the first voice clip starts playing.
+        # Then flush all buffered tokens at once so text + voice start together.
+        if not voice_started:
+            ui_buffer.append(token)
+            
+            # Check if audio player has started the first clip
+            if engine.command.first_audio_playing:
+                voice_started = True
+                print("🔄 Voice started! Flushing buffered text to UI...")
+                try:
+                    eel.HideThinkingAnimation()
+                    for buffered_token in ui_buffer:
+                        formatted = buffered_token.replace('\n', '<br>')
+                        eel.receiverTextStreamChunk(formatted)
+                    eel.sleep(0.02)
+                except:
+                    pass
+                ui_buffer = []
+        else:
+            # Voice is already playing — stream tokens to UI in real-time
+            try:
+                formatted_token = token.replace('\n', '<br>')
+                eel.receiverTextStreamChunk(formatted_token)
+                eel.sleep(0.02)
+            except:
+                pass
+        
+        # ─── TTS DISPATCH ───
+        # FIRST CHUNK: dispatch ASAP (3+ words on ANY punctuation)
+        # LATER CHUNKS: sentence-ending (.?!) always; clause punct (,;:) needs 8+ words
+        should_dispatch = False
+        word_count = len(sentence_buffer.split())
+        
+        if not first_chunk_sent:
+            if any(p in token for p in ['.', '?', '!', ',', ';', ':']) and word_count >= 3:
+                should_dispatch = True
+        else:
+            if any(p in token for p in ['.', '?', '!']):
+                should_dispatch = True
+            elif any(p in token for p in [',', ';', ':']) and word_count >= 8:
+                should_dispatch = True
+        
+        if should_dispatch:
+            clean_sentence = clean_response(sentence_buffer).strip()
+            if clean_sentence:
+                print(f"🗣️ TTS chunk ({len(clean_sentence.split())} words): {clean_sentence[:60]}...")
+                speak(clean_sentence)
+                first_chunk_sent = True
+            sentence_buffer = ""
+
+    # Flush any remaining text in buffer
+    if sentence_buffer.strip():
+        clean_sentence = clean_response(sentence_buffer).strip()
+        if clean_sentence:
+            print(f"🗣️ TTS final chunk: {clean_sentence[:60]}...")
+            speak(clean_sentence)
+    
+    # If voice never started (e.g. very short response), flush UI buffer anyway
+    if ui_buffer:
+        try:
+            eel.HideThinkingAnimation()
+            for buffered_token in ui_buffer:
+                formatted = buffered_token.replace('\n', '<br>')
+                eel.receiverTextStreamChunk(formatted)
+            eel.sleep(0.02)
+        except:
+            pass
+            
+    return clean_response(full_text)
 
 
 # android automation
