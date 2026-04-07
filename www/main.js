@@ -60,7 +60,7 @@ $(document).ready(function () {
 
             $("#Oval").attr("hidden", true);
             $("#SiriWave").attr("hidden", false);
-            eel.allCommands(message);
+            eel.allCommands(message)();
             $("#chatbox").val("");
             $("#MicBtn").attr('hidden', false);
             $("#SendBtn").attr('hidden', true);

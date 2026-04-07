@@ -1,205 +1,145 @@
 body{
-    background-color: black;
+    background: linear-gradient(135deg, #050505 0%, #111116 100%);
     overflow-y: hidden;
     overflow-x: hidden;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    color: #e0e0e0;
 }
 
-.square{
+/* Pulsing Orb (Replaces Iron Man Spinner) */
+.pulse-orb-container {
     position: relative;
-    width: 400px;
-    height: 400px;
+    width: 300px;
+    height: 300px;
     display: flex;
     justify-content: center;
     align-items: center;
 }
 
-.square span:nth-child(1){
+.pulse-orb {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-image: radial-gradient(#6b72ff00 50%, #000dff3b 40%);
-    box-shadow: 0 0 50px rgb(25, 0, 255), inset 0 0 50px rgb(25, 0, 255);
-    border-radius: 38% 62% 63% 37% / 41% 44% 56% 59%;
-    transition: 0.5s;
-    animation: animate1 6s linear infinite;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #00d2ff 0%, #0055ff 100%);
+    box-shadow: 0 0 40px rgba(0, 210, 255, 0.8), inset 0 0 20px rgba(255, 255, 255, 0.5);
+    animation: pulse 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
-.square span:nth-child(2){
+.pulse-orb-core {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-image: radial-gradient(#6b72ff00 50%, #000dff3b 40%);
-    box-shadow: 0 0 50px rgb(25, 0, 255), inset 0 0 50px rgb(25, 0, 255);
-    border-radius: 38% 62% 63% 37% / 41% 44% 56% 59%;
-    transition: 0.5s;
-    animation: animate2 4s linear infinite;
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 0 20px #ffffff;
+    animation: corePulse 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
-.square span:nth-child(3){
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-image: radial-gradient(#6b72ff00 50%, #000dff3b 40%);
-    box-shadow: 0 0 50px rgb(25, 0, 255), inset 0 0 50px rgb(25, 0, 255);
-    border-radius: 38% 62% 63% 37% / 41% 44% 56% 59%;
-    transition: 0.5s;
-    animation: animate3 8s linear infinite;
+@keyframes pulse {
+    0% { transform: scale(0.9); opacity: 0.7; box-shadow: 0 0 30px rgba(0, 210, 255, 0.6); }
+    50% { transform: scale(1.5); opacity: 0.15; box-shadow: 0 0 80px rgba(0, 210, 255, 0.3); }
+    100% { transform: scale(0.9); opacity: 0.7; box-shadow: 0 0 30px rgba(0, 210, 255, 0.6); }
 }
 
-@keyframes animate1 {
-    0%{
-        transform: rotate(0deg);
-    }
-    100%{
-        transform: rotate(360deg);
-    }
-}
-@keyframes animate2 {
-    0%{
-        transform: rotate(0deg);
-    }
-    100%{
-        transform: rotate(360deg);
-    }
-}
-@keyframes animate3 {
-    0%{
-        transform: rotate(0deg);
-    }
-    100%{
-        transform: rotate(360deg);
-    }
+@keyframes corePulse {
+    0% { transform: scale(0.95); opacity: 1; filter: drop-shadow(0 0 10px #fff); }
+    50% { transform: scale(1.1); opacity: 0.85; filter: drop-shadow(0 0 25px #00d2ff); }
+    100% { transform: scale(0.95); opacity: 1; filter: drop-shadow(0 0 10px #fff); }
 }
 
-
-/* Input Filed Start*/
-
-#TextInput {
-background-color: #181818a8;
-border-color: blue;
-box-shadow: 0 0 20px rgb(25, 0, 255),
-    inset 0 0 0px rgb(25, 0, 255);
-border-radius: 8px;
-color: white;
-padding: 3px 0px 3px 20px;
-margin: 0px 20%;
+/* Input Field Glassmorphism Pill */
+.glass-pill {
+    background: rgba(20, 20, 25, 0.3) !important;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(0, 210, 255, 0.15);
+    border-radius: 50px !important;
+    padding: 10px 25px !important;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4), 0 0 15px rgba(0, 210, 255, 0.05);
+    margin: 0 auto !important;
+    width: 65%;
 }
 
 .input-field {
-background-color: transparent;
-border: none;
-width: 95%;
-outline: none;
-color: white;
-font-family: cursive;
+    background-color: transparent;
+    border: none;
+    width: 100%;
+    outline: none;
+    color: white;
+    font-size: 16px;
+    letter-spacing: 0.5px;
 }
 
+.input-field::placeholder {
+    color: rgba(255, 255, 255, 0.3);
+}
 
 .glow-on-hover {
-width: 35px;
-height: 35px;
-border: none;
-outline: none;
-color: #fff;
-background: #111;
-cursor: pointer;
-position: relative;
-z-index: 0;
-border-radius: 10px;
-padding: 0px;
-margin-left: 10px;
+    width: 40px;
+    height: 40px;
+    border: none;
+    outline: none;
+    color: #fff;
+    background: rgba(0, 210, 255, 0.1);
+    cursor: pointer;
+    border-radius: 50%;
+    margin-left: 10px;
+    transition: all 0.3s ease;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
-.glow-on-hover:before {
-content: '';
-background: linear-gradient(45deg, #ff0000, #ff7300, #fffb00, #48ff00, #00ffd5, #002bff, #7a00ff, #ff00c8, #ff0000);
-position: absolute;
-top: -2px;
-left: -2px;
-background-size: 400%;
-z-index: -1;
-filter: blur(5px);
-width: calc(100% + 4px);
-height: calc(100% + 4px);
-animation: glowing 20s linear infinite;
-opacity: 0;
-transition: opacity .3s ease-in-out;
-border-radius: 10px;
+.glow-on-hover:hover {
+    background: rgba(0, 210, 255, 0.3);
+    box-shadow: 0 0 15px rgba(0, 210, 255, 0.4);
+    transform: scale(1.05);
 }
 
 .glow-on-hover:active {
-color: #181818a8
+    transform: scale(0.95);
 }
-
-.glow-on-hover:active:after {
-background: transparent;
-}
-
-.glow-on-hover:hover:before {
-opacity: 1;
-}
-
-.glow-on-hover:after {
-z-index: -1;
-content: '';
-position: absolute;
-width: 100%;
-height: 100%;
-background: #111;
-left: 0;
-top: 0;
-border-radius: 10px;
-}
-
-@keyframes glowing {
-0% {
-    background-position: 0 0;
-}
-
-50% {
-    background-position: 400% 0;
-}
-
-100% {
-    background-position: 0 0;
-}
-}
-
-  
-/* Input Filed End*/
-
 
 /* Chat Box Start */
 
-.chat-canvas{
-background-color: #191919
+.chat-canvas {
+    background: rgba(10, 10, 15, 0.85) !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.receiver_message{
-padding: 8px;
-border: 2px solid cyan;
-border-radius: 0px 15px 15px 20px;
-width: auto;
-color: white;
-background-color: #0dcaf014;
+.offcanvas-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.sender_message{
-padding: 8px;
-border: 1px solid #0045ff;
-border-radius: 15px 15px 0px 20px;
-width: auto;
-color: white;
-background-color: #0045ff;
+.receiver_message {
+    padding: 10px 15px;
+    border: 1px solid rgba(0, 210, 255, 0.2);
+    border-radius: 5px 20px 20px 20px;
+    width: auto;
+    color: #e0e0e0;
+    background: rgba(0, 210, 255, 0.05);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    margin-bottom: 15px;
+    font-size: 14px;
 }
-.width-size{
-max-width: 80%;
-width: auto;
+
+.sender_message {
+    padding: 10px 15px;
+    border: 1px solid #0055ff;
+    border-radius: 20px 20px 5px 20px;
+    width: auto;
+    color: white;
+    background: linear-gradient(135deg, #0055ff 0%, #0033aa 100%);
+    box-shadow: 0 4px 15px rgba(0, 85, 255, 0.2);
+    margin-bottom: 15px;
+    font-size: 14px;
+}
+
+.width-size {
+    max-width: 85%;
+    width: auto;
 }
 /* Chat Box Start End*/

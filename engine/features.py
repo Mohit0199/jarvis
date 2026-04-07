@@ -61,30 +61,36 @@ def openCommand(query):
 
     try:
         # ── Exact match: sys_command ──
-        cursor.execute('SELECT name, path FROM sys_command')
-        sys_apps = cursor.fetchall()
-        sys_names = [row[0] for row in sys_apps]
+        try:
+            cursor.execute('SELECT name, path FROM sys_command')
+            sys_apps = cursor.fetchall()
+            sys_names = [row[0] for row in sys_apps]
 
-        if sys_names:
-            best, score, idx = process.extractOne(app_name, sys_names, scorer=fuzz.WRatio)
-            if score >= 70:
-                speak("Opening " + best)
-                wait_for_speech()
-                os.startfile(sys_apps[idx][1])
-                return
+            if sys_names:
+                best, score, idx = process.extractOne(app_name, sys_names, scorer=fuzz.WRatio)
+                if score >= 70:
+                    speak("Opening " + best)
+                    wait_for_speech()
+                    os.startfile(sys_apps[idx][1])
+                    return
+        except Exception as db_err:
+            pass # Table might not exist, silently fallback
 
         # ── Exact match: web_command ──
-        cursor.execute('SELECT name, url FROM web_command')
-        web_apps = cursor.fetchall()
-        web_names = [row[0] for row in web_apps]
+        try:
+            cursor.execute('SELECT name, url FROM web_command')
+            web_apps = cursor.fetchall()
+            web_names = [row[0] for row in web_apps]
 
-        if web_names:
-            best, score, idx = process.extractOne(app_name, web_names, scorer=fuzz.WRatio)
-            if score >= 70:
-                speak("Opening " + best)
-                wait_for_speech()
-                webbrowser.open(web_apps[idx][1])
-                return
+            if web_names:
+                best, score, idx = process.extractOne(app_name, web_names, scorer=fuzz.WRatio)
+                if score >= 70:
+                    speak("Opening " + best)
+                    wait_for_speech()
+                    webbrowser.open(web_apps[idx][1])
+                    return
+        except Exception as db_err:
+            pass # Table might not exist, silently fallback
 
         # ── Fallback: OS start command ──
         speak("Opening " + app_name)
