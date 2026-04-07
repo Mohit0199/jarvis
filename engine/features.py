@@ -94,7 +94,7 @@ def PlayYoutube(query):
     if search_term is None:
         speak("Sorry, I couldn't find the song name in your query.")
         return
-    speak("Playing "+search_term+" on youtube")
+    speak("Playing "+search_term)
     wait_for_speech()
     kit.playonyt(search_term)
 
