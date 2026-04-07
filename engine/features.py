@@ -157,8 +157,8 @@ def hotword():
 
     print("🎙️ Listening for 'Hey Jarvis'... (Ready!)")
 
-    THRESHOLD = 0.15      # 0.09=false trigger, 0.17=real detection — 0.15 is the sweet spot
-    COOLDOWN_SEC = 3      # Minimum seconds between valid detections
+    THRESHOLD = 0.08      # Ultra-sensitive. Barely whispering should trigger it.
+    COOLDOWN_SEC = 2      # Faster cooldown
     last_detected = 0
 
     try:
@@ -174,10 +174,14 @@ def hotword():
                     print(f"✅ Wake word detected! ({model_name}: {score:.2f})")
                     last_detected = now
                     oww_model.reset()
-                    autogui.keyDown("win")
-                    autogui.press("j")
-                    time.sleep(2)
-                    autogui.keyUp("win")
+                    
+                    # Inter-Process Communication (IPC): Send wake signal to main Eel process
+                    try:
+                        with open("wake_signal.txt", "w") as f:
+                            f.write("wake")
+                    except Exception as e:
+                        print(f"Failed to signal wake: {e}")
+
 
     except KeyboardInterrupt:
         print("Stopped by user.")
@@ -218,8 +222,6 @@ def findContact(query):
     except:
         speak('not exist in contacts')
         return 0, 0
-
-
 def whatsApp(mobile_no, message, flag, name):
 
     if flag == 'message':

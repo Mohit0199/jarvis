@@ -38,10 +38,15 @@ $(document).ready(function () {
     // Display hood
     eel.expose(ShowHood)
     function ShowHood() {
-
         $("#Oval").attr("hidden", false);
         $("#SiriWave").attr("hidden", true);
-        
+    }
+    
+    // Display SiriWave (Listening mode)
+    eel.expose(ShowSiriWave)
+    function ShowSiriWave() {
+        $("#Oval").attr("hidden", true);
+        $("#SiriWave").attr("hidden", false);
     }
 
     eel.expose(ShowStopBtn)

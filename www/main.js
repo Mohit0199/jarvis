@@ -26,7 +26,7 @@ $(document).ready(function () {
 
     $("#StopSpeakingBtn").click(function () {
         eel.stop_speak();
-        eel.StopTextAnimation();
+        StopTextAnimation();
         $("#StopSpeakingBtn").attr('hidden', true);
     });
 

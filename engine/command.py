@@ -221,6 +221,8 @@ def allCommands(message=1):
 
     def _process_command():
         print("⚡ [BACKEND] _process_command greenlet spawned!")
+        global stop_speaking_flag
+        stop_speaking_flag = False
         try:
             if message == 1:
                 query = takecommand()
