@@ -36,14 +36,18 @@ def mute_volume():
 # ─── Screenshot ───
 
 def take_screenshot():
-    """Takes a screenshot and saves to Desktop."""
+    """Takes a screenshot and saves to a local folder."""
     try:
-        desktop = os.path.join(os.path.expanduser("~"), "Desktop")
+        # Save to a generic relative directory in the project
+        save_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "screenshots")
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+            
         filename = f"jarvis_screenshot_{int(time.time())}.png"
-        filepath = os.path.join(desktop, filename)
+        filepath = os.path.join(save_dir, filename)
         screenshot = pyautogui.screenshot()
         screenshot.save(filepath)
-        speak(f"Screenshot saved to your Desktop as {filename}.")
+        speak("Screenshot taken.")
         print(f"📸 Screenshot saved: {filepath}")
     except Exception as e:
         speak("Screenshot failed. Sorry about that.")
