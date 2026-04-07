@@ -143,18 +143,22 @@ def hotword():
 
     print("🎙️ Listening for 'Hey Jarvis'... (Ready!)")
 
+    THRESHOLD = 0.5       # Raised from 0.08 — prevents false triggers on background noise
+    COOLDOWN_SEC = 3      # Minimum seconds between valid detections
+    last_detected = 0
+
     try:
         while True:
             audio_data = stream.read(CHUNK, exception_on_overflow=False)
             audio_array = np.frombuffer(audio_data, dtype=np.int16)
 
-            # Feed audio to the model
             prediction = oww_model.predict(audio_array)
 
-            # Check all model scores
             for model_name, score in prediction.items():
-                if score > 0.08:
+                now = time.time()
+                if score > THRESHOLD and (now - last_detected) > COOLDOWN_SEC:
                     print(f"✅ Wake word detected! ({model_name}: {score:.2f})")
+                    last_detected = now
                     oww_model.reset()
                     autogui.keyDown("win")
                     autogui.press("j")
@@ -244,11 +248,22 @@ def whatsApp(mobile_no, message, flag, name):
 
 
 
-def chatBot(query):
-    user_input = query.lower()
 
-    # Create the prompt using your existing function
-    prompt = generate_prompt(user_input)
+# ─── Conversation Memory ───
+# Persists across all chatBot() calls for the lifetime of the session.
+# Stores dicts: {"role": "user"/"assistant", "content": "..."}
+conversation_history = []
+
+
+def clear_memory():
+    """Wipes Jarvis's conversation history. Call this on 'forget' / 'reset' commands."""
+    global conversation_history
+    conversation_history = []
+    print("🧹 Conversation history cleared.")
+
+
+def chatBot(query):
+    global conversation_history
 
     # Tell UI to initialize a new streaming text bubble + show thinking animation
     try:
@@ -258,12 +273,14 @@ def chatBot(query):
     except Exception as e:
         print("Eel stream init failed", e)
 
+    # Build messages: system prompt + history + current query
+    messages = generate_prompt(query, conversation_history)
+    print(f"🧠 Memory: {len(conversation_history)//2} exchanges in context")
+
     # Use Ollama library to stream chat with local model
     response_stream = ollama.chat(
         model='qwen2.5:latest',
-        messages=[
-            {"role": "user", "content": prompt}
-        ],
+        messages=messages,
         stream=True
     )
 
@@ -274,7 +291,7 @@ def chatBot(query):
     sentence_buffer = ""
     full_text = ""
     first_chunk_sent = False
-    ui_buffer = []       # Buffer tokens until voice starts
+    ui_buffer = []        # Buffer tokens until voice starts
     voice_started = False # Flipped True once first audio clip begins playing
 
     for chunk in response_stream:
@@ -357,8 +374,21 @@ def chatBot(query):
             eel.sleep(0.02)
         except:
             pass
-            
-    return clean_response(full_text)
+    
+    # ─── Save to Memory ───
+    # Only save if we got a meaningful response and weren't interrupted
+    final_response = clean_response(full_text)
+    if final_response and not engine.command.stop_speaking_flag:
+        conversation_history.append({"role": "user", "content": query})
+        conversation_history.append({"role": "assistant", "content": final_response})
+        # Cap memory at 10 exchanges (20 messages)
+        if len(conversation_history) > 20:
+            conversation_history = conversation_history[-20:]
+        print(f"💾 Memory updated: {len(conversation_history)//2} exchanges stored")
+
+    return final_response
+
+
 
 
 # android automation

@@ -280,6 +280,11 @@ def allCommands(message=1):
                 from engine.features import openCamera
                 openCamera()
 
+            elif any(w in query for w in ["forget", "reset", "clear memory", "start over", "wipe memory"]):
+                from engine.features import clear_memory
+                clear_memory()
+                speak("Memory cleared, Mohit. We're starting fresh. What would you like to discuss?")
+
             else:
                 from engine.features import chatBot
                 chatBot(query)

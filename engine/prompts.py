@@ -1,121 +1,51 @@
 import re
 
-def generate_prompt(query):
+# ─── Jarvis Personality System Prompt ───
+# Single unified prompt — no more keyword routing.
+# Jarvis has a consistent personality across ALL queries.
+JARVIS_SYSTEM_PROMPT = """You are J.A.R.V.I.S. — Just A Rather Very Intelligent System — the personal AI assistant of Mohit.
+
+Your personality:
+- You have a dry British wit and a sharp sense of humour. You're not afraid to be a little cheeky.
+- You speak in short, punchy sentences optimised for voice. No long monologues unless Mohit explicitly asks for detail.
+- You never say "As an AI language model..." or "I don't have feelings." Just answer naturally.
+- You never use markdown — no asterisks, no bullet points, no headers. Speak like a person, not a document.
+- You address Mohit by name occasionally, but not in every single sentence — that would be annoying.
+- You remember the full conversation and refer back to it naturally when relevant.
+- You are confident, occasionally sarcastic, always helpful. Think Alfred from Batman meets Tony Stark's Jarvis.
+- Keep answers to 2-4 sentences by default. If Mohit wants more detail, he'll ask.
+- For greetings, be warm and brief. For facts, be precise. For opinions, be opinionated but fair.
+- Never pad your answer. Quality over quantity, always."""
+
+
+def generate_prompt(query, conversation_history=None):
     """
-    A function to automatically generate prompts based on the content of the query.
-    The function attempts to classify the query type and generate the relevant prompt accordingly.
+    Returns the messages array for ollama.chat() — includes system personality
+    prompt, full conversation history, and the current user query.
     """
-    query = query.lower()
+    messages = [{"role": "system", "content": JARVIS_SYSTEM_PROMPT}]
+    
+    # Inject conversation history (capped at last 10 exchanges = 20 messages)
+    if conversation_history:
+        messages.extend(conversation_history[-20:])
+    
+    # Add current user query
+    messages.append({"role": "user", "content": query})
+    
+    return messages
 
-    # Heuristic classification of the query type
-    if any(word in query for word in ["summarize", "summary", "brief", "shorten"]):
-        return f"""
-        You are an expert summarizer. Please summarize the following text in a concise manner, preserving the key details and ideas.
-        
-        Text to summarize: {query}
-        """
-
-    elif any(word in query for word in ["sentiment", "emotion", "feel", "opinion"]):
-        return f"""
-        You are a sentiment analysis expert. Please analyze the sentiment of the following text and categorize it as positive, negative, or neutral. Provide a brief explanation of the sentiment.
-
-        Text: {query}
-        """
-
-    elif "coding" in query or any(word in query for word in ["python", "java", "html", "code", "debug", "program"]):
-        return f"""
-        You are a programming expert. Please provide detailed guidance or a solution to the following coding issue. Include relevant code snippets or explanations.
-        
-        Issue: {query}
-        """
-
-    elif "business" in query or any(word in query for word in ["startup", "entrepreneur", "market", "scalability", "business model"]):
-        return f"""
-        You are a business consultant. Evaluate the following business idea and provide insights about its potential, scalability, and any challenges. Suggest improvements if necessary.
-
-        Business Idea: {query}
-        """
-
-    elif any(word in query for word in ["compare", "difference", "contrast", "vs"]):
-        return f"""
-        You are an expert at comparisons. Compare the following two items based on their features, advantages, and drawbacks.
-
-        Item 1: {query}
-        """
-
-    elif any(word in query for word in ["career", "job", "resume", "interview", "skills"]):
-        return f"""
-        You are a career advisor. Offer detailed advice on the following query related to career development, job search, or professional growth.
-
-        Career Query: {query}
-        """
-
-    elif any(word in query for word in ["health", "wellness", "fitness", "exercise", "nutrition"]):
-        return f"""
-        You are a health expert. Provide practical tips for improving health, fitness, or wellness. Make sure to include actionable advice that can be followed easily.
-
-        Health Query: {query}
-        """
-
-    elif any(word in query for word in ["recipe", "cook", "meal", "ingredient"]):
-        return f"""
-        You are a chef. Suggest some recipes based on the following ingredient or type of meal. Provide clear, easy-to-follow instructions and be creative with your suggestions.
-
-        Ingredient: {query}
-        """
-
-    elif any(word in query for word in ["travel", "destination", "vacation", "trip", "tour"]):
-        return f"""
-        You are a travel expert. Suggest a travel itinerary or destination based on the following query. Provide tips, activities, and recommendations for the traveler.
-
-        Location: {query}
-        """
-
-    elif any(word in query for word in ["troubleshoot", "fix", "problem", "solution", "error"]):
-        return f"""
-        You are a troubleshooting assistant. Provide a step-by-step solution for the following problem, including possible causes and resolutions.
-
-        Issue: {query}
-        """
-
-    elif any(word in query for word in ["explain", "define", "meaning", "concept", "understand"]):
-        return f"""
-        You are an educator. Break down the following concept or term in simple, easy-to-understand language. Avoid jargon and make it clear for beginners.
-
-        Concept: {query}
-        """
-
-    elif "data science" in query or any(word in query for word in ["statistics", "machine learning", "algorithm", "AI", "data"]):
-        return f"""
-        You are a data science expert. Provide an in-depth explanation of the following data science concept, including examples and key insights.
-
-        Query: {query}
-        """
-
-    elif any(word in query for word in ["creative", "story", "poem", "narrative", "imagine"]):
-        return f"""
-        You are a creative writer. Create a captivating story or narrative based on the following input. Use vivid language and creativity to engage the reader.
-
-        Input: {query}
-        """
-
-    # Default: If the query doesn't match any of the above, return a general query prompt
-    else:
-        return f"""
-        You are a helpful assistant. Respond to the following query clearly and concisely, providing useful information and insights.
-        
-        Query: {query}
-        """
 
 def clean_response(response):
     """
-    This function cleans the chatbot's response by removing unwanted characters
-    like special symbols, hashtags, asterisks, and other markdown-related symbols.
+    Cleans the chatbot response for TTS — strips markdown, symbols, extra whitespace.
+    Keeps letters, numbers, spaces, basic punctuation and apostrophes.
     """
-    # Remove non-alphanumeric characters, asterisks, hashtags, and markdown symbols
-    cleaned = re.sub(r"[^\w\s,.,-]", "", str(response))  # Keeps letters, numbers, spaces, commas, periods, and hyphens
-    cleaned = cleaned.replace("#", "")  # Remove hashtags
-    cleaned = cleaned.replace("*", "")  # Remove asterisks
-    cleaned = cleaned.replace("\n", " ")  # Remove newlines for a cleaner output
-    cleaned = cleaned.strip()  # Trim any leading/trailing spaces
-    return cleaned
+    text = str(response)
+    # Remove markdown headers, bold, italic markers
+    text = re.sub(r'[#*_`~]', '', text)
+    # Remove special non-speech characters but keep apostrophes and basic punctuation
+    text = re.sub(r'[^\w\s,.\-!?\';:]', '', text)
+    # Collapse multiple spaces/newlines
+    text = re.sub(r'\s+', ' ', text)
+    text = text.strip()
+    return text
