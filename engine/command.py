@@ -285,9 +285,39 @@ def allCommands(message=1):
                 clear_memory()
                 speak("Memory cleared, Mohit. We're starting fresh. What would you like to discuss?")
 
+            # ─── System Controls ───
+            elif any(w in query for w in ["volume up", "increase volume", "turn up", "louder"]):
+                from engine.system_control import volume_up
+                volume_up()
+
+            elif any(w in query for w in ["volume down", "decrease volume", "turn down", "quieter"]):
+                from engine.system_control import volume_down
+                volume_down()
+
+            elif any(w in query for w in ["mute", "silence", "quiet"]):
+                from engine.system_control import mute_volume
+                mute_volume()
+
+            elif "screenshot" in query or "screen shot" in query or "capture screen" in query:
+                from engine.system_control import take_screenshot
+                take_screenshot()
+
+            elif "battery" in query:
+                from engine.system_control import battery_status
+                battery_status()
+
+            elif any(w in query for w in ["shutdown", "shut down", "turn off computer", "power off"]):
+                from engine.system_control import shutdown_pc
+                shutdown_pc()
+
+            elif any(w in query for w in ["restart", "reboot", "restart computer"]):
+                from engine.system_control import restart_pc
+                restart_pc()
+
             else:
                 from engine.features import chatBot
                 chatBot(query)
+
 
         except Exception as e:
             print(f"Error in allCommands: {e}")

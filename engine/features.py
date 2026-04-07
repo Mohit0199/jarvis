@@ -50,43 +50,51 @@ def wait_for_speech():
 
 
 def openCommand(query):
+    from rapidfuzz import process, fuzz
+
     query = query.replace(ASSISTANT_NAME, "")
-    query = query.replace("open", "")
-    query.lower()
+    query = query.replace("open", "").strip().lower()
+    app_name = query
 
-    app_name = query.strip()
+    if not app_name:
+        return
 
-    if app_name != "":
+    try:
+        # ── Exact match: sys_command ──
+        cursor.execute('SELECT name, path FROM sys_command')
+        sys_apps = cursor.fetchall()
+        sys_names = [row[0] for row in sys_apps]
 
-        try:
-            cursor.execute(
-                'SELECT path FROM sys_command WHERE name IN (?)', (app_name,))
-            results = cursor.fetchall()
-
-            if len(results) != 0:
-                speak("Opening "+query)
+        if sys_names:
+            best, score, idx = process.extractOne(app_name, sys_names, scorer=fuzz.WRatio)
+            if score >= 70:
+                speak("Opening " + best)
                 wait_for_speech()
-                os.startfile(results[0][0])
+                os.startfile(sys_apps[idx][1])
+                return
 
-            elif len(results) == 0: 
-                cursor.execute(
-                'SELECT url FROM web_command WHERE name IN (?)', (app_name,))
-                results = cursor.fetchall()
-                
-                if len(results) != 0:
-                    speak("Opening "+query)
-                    wait_for_speech()
-                    webbrowser.open(results[0][0])
+        # ── Exact match: web_command ──
+        cursor.execute('SELECT name, url FROM web_command')
+        web_apps = cursor.fetchall()
+        web_names = [row[0] for row in web_apps]
 
-                else:
-                    speak("Opening "+query)
-                    wait_for_speech()
-                    try:
-                        os.system('start '+query)
-                    except:
-                        speak("not found")
-        except:
-            speak("some thing went wrong")
+        if web_names:
+            best, score, idx = process.extractOne(app_name, web_names, scorer=fuzz.WRatio)
+            if score >= 70:
+                speak("Opening " + best)
+                wait_for_speech()
+                webbrowser.open(web_apps[idx][1])
+                return
+
+        # ── Fallback: OS start command ──
+        speak("Opening " + app_name)
+        wait_for_speech()
+        os.system('start ' + app_name)
+
+    except Exception as e:
+        print(f"openCommand error: {e}")
+        speak("Something went wrong opening that.")
+
 
 
 def PlayYoutube(query):
@@ -143,7 +151,7 @@ def hotword():
 
     print("🎙️ Listening for 'Hey Jarvis'... (Ready!)")
 
-    THRESHOLD = 0.5       # Raised from 0.08 — prevents false triggers on background noise
+    THRESHOLD = 0.15      # 0.09=false trigger, 0.17=real detection — 0.15 is the sweet spot
     COOLDOWN_SEC = 3      # Minimum seconds between valid detections
     last_detected = 0
 
@@ -264,6 +272,7 @@ def clear_memory():
 
 def chatBot(query):
     global conversation_history
+    from engine.web_search import needs_web_search, web_search
 
     # Tell UI to initialize a new streaming text bubble + show thinking animation
     try:
@@ -273,8 +282,26 @@ def chatBot(query):
     except Exception as e:
         print("Eel stream init failed", e)
 
+    # ── Web Search Injection ──
+    # If query needs fresh data, fetch it and inject as context before LLM call
+    web_context = ""
+    if needs_web_search(query):
+        print("🌐 Detected time-sensitive query — fetching live data...")
+        web_context = web_search(query)
+
+    # Build the query string with optional web context prepended
+    if web_context:
+        enriched_query = (
+            f"[Live web search results for context:]\n{web_context}\n\n"
+            f"[User question:] {query}\n\n"
+            f"Use the search results above to answer accurately and naturally. "
+            f"Don't say 'according to search results' — just speak naturally."
+        )
+    else:
+        enriched_query = query
+
     # Build messages: system prompt + history + current query
-    messages = generate_prompt(query, conversation_history)
+    messages = generate_prompt(enriched_query, conversation_history)
     print(f"🧠 Memory: {len(conversation_history)//2} exchanges in context")
 
     # Use Ollama library to stream chat with local model
